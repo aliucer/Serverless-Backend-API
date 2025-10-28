@@ -2,8 +2,7 @@
 
 A production-ready serverless REST API built with AWS Lambda, API Gateway, DynamoDB, and S3. Implemented in both Python and TypeScript to demonstrate serverless architecture patterns.
 
-**Author**: Ali Ucer  
-**Created**: 2024
+**Author**: Ali Ucer 
 
 ## Overview
 
