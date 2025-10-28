@@ -193,7 +193,7 @@ make build
 - S3 lifecycle rules for automatic cleanup (30 days)
 - TTL on tables for data lifecycle management
 
-Estimated cost: <$1/month for moderate usage.
+Estimated cost: less than $1/month for moderate usage.
 
 ## Security
 
@@ -209,14 +209,6 @@ Estimated cost: <$1/month for moderate usage.
 - Real-time notifications
 - Multi-region support
 
-## Contributing
-
-Pull requests welcome. See `CONTRIBUTING.md` for guidelines.
-
-## License
-
-MIT License
-
 ## Author
 
-Ali Ucer - 2024
+Ali Ucer
