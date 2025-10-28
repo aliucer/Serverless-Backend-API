@@ -1,0 +1,336 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless Backend API - Built by Ali Ucer (2024). A learning project to explore AWS serverless architecture, DynamoDB design, and CI/CD practices.
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.11
+    Environment:
+      Variables:
+        USERS_TABLE_NAME: !Ref UsersTable
+        ASSETS_TABLE_NAME: !Ref AssetsTable
+        ASSETS_BUCKET_NAME: !Ref AssetsBucket
+    Policies:
+      - DynamoDBCrudPolicy:
+          TableName: !Ref UsersTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref AssetsTable
+      - S3ReadPolicy:
+          BucketName: !Ref AssetsBucket
+      - S3WritePolicy:
+          BucketName: !Ref AssetsBucket
+      - CloudWatchLogsPolicy:
+          LogGroupName: !Sub '/aws/lambda/${AWS::StackName}'
+
+Resources:
+  # API Gateway
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: ServerlessBackendApi
+      StageName: v1
+      Description: REST API for serverless backend
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+
+  # DynamoDB Tables
+  
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-users'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: N
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: createdAt-index
+          KeySchema:
+            - AttributeName: createdAt
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  AssetsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-assets'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: assetId
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: N
+      KeySchema:
+        - AttributeName: assetId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: status-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: createdAt-index
+          KeySchema:
+            - AttributeName: createdAt
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # S3 Bucket
+  AssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-assets'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldAssets
+            Status: Enabled
+            ExpirationInDays: 30
+
+  # Python Lambda Functions - Users API
+
+  PythonUsersGetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-users-get-python'
+      CodeUri: ../lambda/python
+      Handler: users_handler.handler
+      Environment:
+        Variables:
+          USERS_TABLE_NAME: !Ref UsersTable
+      Events:
+        GetUserEvent:
+          Type: Api
+          Properties:
+            Path: /users/{id}
+            Method: GET
+            RestApiId: !Ref ApiGateway
+
+  PythonUsersCreateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-users-create-python'
+      CodeUri: ../lambda/python
+      Handler: users_handler.handler
+      Environment:
+        Variables:
+          USERS_TABLE_NAME: !Ref UsersTable
+      Events:
+        CreateUserEvent:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: POST
+            RestApiId: !Ref ApiGateway
+
+  PythonUsersUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-users-update-python'
+      CodeUri: ../lambda/python
+      Handler: users_handler.handler
+      Environment:
+        Variables:
+          USERS_TABLE_NAME: !Ref UsersTable
+      Events:
+        UpdateUserEvent:
+          Type: Api
+          Properties:
+            Path: /users/{id}
+            Method: PUT
+            RestApiId: !Ref ApiGateway
+
+  PythonUsersDeleteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-users-delete-python'
+      CodeUri: ../lambda/python
+      Handler: users_handler.handler
+      Environment:
+        Variables:
+          USERS_TABLE_NAME: !Ref UsersTable
+      Events:
+        DeleteUserEvent:
+          Type: Api
+          Properties:
+            Path: /users/{id}
+            Method: DELETE
+            RestApiId: !Ref ApiGateway
+
+  # Python Lambda Functions - Assets API
+
+  PythonAssetsCreateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-assets-create-python'
+      CodeUri: ../lambda/python
+      Handler: assets_handler.handler
+      Environment:
+        Variables:
+          ASSETS_TABLE_NAME: !Ref AssetsTable
+          ASSETS_BUCKET_NAME: !Ref AssetsBucket
+      Events:
+        CreateAssetEvent:
+          Type: Api
+          Properties:
+            Path: /assets
+            Method: POST
+            RestApiId: !Ref ApiGateway
+
+  PythonAssetsGetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-assets-get-python'
+      CodeUri: ../lambda/python
+      Handler: assets_handler.handler
+      Environment:
+        Variables:
+          ASSETS_TABLE_NAME: !Ref AssetsTable
+          ASSETS_BUCKET_NAME: !Ref AssetsBucket
+      Events:
+        GetAssetEvent:
+          Type: Api
+          Properties:
+            Path: /assets/{id}
+            Method: GET
+            RestApiId: !Ref ApiGateway
+
+  PythonAssetsDownloadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-assets-download-python'
+      CodeUri: ../lambda/python
+      Handler: assets_handler.handler
+      Environment:
+        Variables:
+          ASSETS_TABLE_NAME: !Ref AssetsTable
+          ASSETS_BUCKET_NAME: !Ref AssetsBucket
+      Events:
+        DownloadAssetEvent:
+          Type: Api
+          Properties:
+            Path: /assets/{id}/download
+            Method: GET
+            RestApiId: !Ref ApiGateway
+
+  # TypeScript Lambda Functions - Users API
+
+  TypeScriptUsersGetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-users-get-typescript'
+      CodeUri: ../lambda/typescript
+      Handler: dist/users-handler.handler
+      Runtime: nodejs20.x
+      Environment:
+        Variables:
+          USERS_TABLE_NAME: !Ref UsersTable
+      Events:
+        GetUserTSEvent:
+          Type: Api
+          Properties:
+            Path: /ts/users/{id}
+            Method: GET
+            RestApiId: !Ref ApiGateway
+
+  TypeScriptUsersCreateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-users-create-typescript'
+      CodeUri: ../lambda/typescript
+      Handler: dist/users-handler.handler
+      Runtime: nodejs20.x
+      Environment:
+        Variables:
+          USERS_TABLE_NAME: !Ref UsersTable
+      Events:
+        CreateUserTSEvent:
+          Type: Api
+          Properties:
+            Path: /ts/users
+            Method: POST
+            RestApiId: !Ref ApiGateway
+
+  # CloudWatch Alarms
+
+  ApiLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-api-latency'
+      MetricName: Latency
+      Namespace: AWS/ApiGateway
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1000
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ApiName
+          Value: !Ref ApiGateway
+      AlarmDescription: API Gateway latency is too high
+
+  ApiErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-api-errors'
+      MetricName: Count
+      Namespace: AWS/ApiGateway
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ApiName
+          Value: !Ref ApiGateway
+      AlarmDescription: Too many API errors
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/v1'
+  
+  UsersTableName:
+    Description: Users DynamoDB table name
+    Value: !Ref UsersTable
+  
+  AssetsTableName:
+    Description: Assets DynamoDB table name
+    Value: !Ref AssetsTable
+  
+  AssetsBucketName:
+    Description: Assets S3 bucket name
+    Value: !Ref AssetsBucket
+
