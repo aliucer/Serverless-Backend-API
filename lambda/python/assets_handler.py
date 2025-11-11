@@ -21,15 +21,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - GET /assets/{id}/download - Get signed URL for download
     """
     try:
-        logger.info("Asset request received", path=event.get('path'), method=event.get('httpMethod'))
-        
         method = event.get('httpMethod')
         path = event.get('path', '')
         path_params = event.get('pathParameters') or {}
-        body = json.loads(event.get('body', '{}'))
-        
         asset_id = path_params.get('id')
         action = path_params.get('action', '')
+        
+        logger.info("Asset request received", path=path, method=method, asset_id=asset_id)
+        
+        body = json.loads(event.get('body', '{}'))
         
         if method == 'POST':
             return upload_asset(body)

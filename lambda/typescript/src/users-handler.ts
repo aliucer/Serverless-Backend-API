@@ -35,12 +35,13 @@ async function sleep(ms: number): Promise<void> {
 }
 
 async function handler(event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> {
-  console.log('Request received', { path: event.path, method: event.httpMethod });
-  
   const method = event.httpMethod;
   const pathParameters = event.pathParameters || {};
-  const body = event.body ? JSON.parse(event.body) : {};
   const userId = pathParameters.id;
+  
+  console.log('Request received', { path: event.path, method, userId });
+  
+  const body = event.body ? JSON.parse(event.body) : {};
   
   try {
     switch (method) {

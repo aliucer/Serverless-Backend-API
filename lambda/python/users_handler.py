@@ -29,10 +29,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - DELETE /users/{id} - Delete user
     """
     try:
-        logger.info("Request received", path=event.get('path'), method=event.get('httpMethod'))
+        http_method = event.get('httpMethod')
+        request_path = event.get('path', '')
+        logger.info("Request received", path=request_path, method=http_method)
         
-        method = event.get('httpMethod')
-        path = event.get('path', '')
+        method = http_method
+        path = request_path
         path_params = event.get('pathParameters') or {}
         body = json.loads(event.get('body', '{}'))
         
